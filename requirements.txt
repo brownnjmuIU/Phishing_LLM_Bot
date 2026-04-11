@@ -1,0 +1,12 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+jinja2==3.1.4
+python-multipart==0.0.9
+pydantic==2.9.2
+python-dotenv==1.0.1
+# Text-only app: torchvision/torchaudio are not used; old pins break on Python 3.14+.
+torch==2.10.0
+transformers==4.45.2
+accelerate==1.0.1
+bitsandbytes==0.49.2
+sentencepiece==0.2.0
