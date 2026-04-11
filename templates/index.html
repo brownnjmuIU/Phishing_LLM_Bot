@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishGuard Simulator • AI Phishing Awareness</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        :root {
+            --primary: 234 179 8;
+        }
+        
+        .chat-bubble-user {
+            background: rgb(234 179 8);
+            color: black;
+            border-radius: 20px 20px 4px 20px;
+        }
+        
+        .chat-bubble-ai {
+            background: #1f2937;
+            border-radius: 20px 20px 20px 4px;
+        }
+        
+        .message {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .scenario-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .scenario-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        
+        .terminal-header {
+            background: linear-gradient(90deg, #1f2937, #334155);
+        }
+        
+        @keyframes loading {
+            0% { width: 20%; }
+            50% { width: 65%; }
+            100% { width: 20%; }
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200 font-sans">
+    <!-- Model Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-zinc-950 z-50 flex items-center justify-center transition-opacity duration-700">
+        <div class="text-center max-w-md px-8">
+            <div class="w-16 h-16 mx-auto mb-8 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+            
+            <h2 class="text-3xl font-semibold tracking-tight mb-2 text-white">Loading PhishGuard Model</h2>
+            <p id="loading-status" class="text-zinc-400 mb-8 text-sm">
+                Initializing Phi-3.5-mini-instruct (3.8B)...
+            </p>
+            
+            <div class="w-full bg-zinc-900 h-1.5 rounded-3xl overflow-hidden mb-8">
+                <div id="progress-bar" 
+                     class="h-1.5 bg-gradient-to-r from-yellow-400 to-amber-400 rounded-3xl w-1/3 animate-[loading_2.5s_infinite_linear]"></div>
+            </div>
+            
+            <div class="text-[10px] font-mono text-zinc-500 space-y-1">
+                <div>This may take 30–90 seconds on first run</div>
+                <div>Model is cached after initial download</div>
+            </div>
+            
+            <div id="loading-error" class="hidden mt-8 text-red-400 text-xs bg-red-950/30 border border-red-800 p-4 rounded-2xl">
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="border-b border-zinc-800 bg-zinc-950 py-4 px-6 flex items-center justify-between">
+            <div class="flex items-center gap-x-3">
+                <div class="w-9 h-9 bg-yellow-500 text-black rounded-2xl flex items-center justify-center font-bold text-xl">P</div>
+                <div>
+                    <h1 class="text-2xl font-semibold tracking-tight text-white">PhishGuard</h1>
+                    <p class="text-xs text-zinc-500 -mt-1">AI Phishing Awareness Simulator</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-x-8 text-sm">
+                <a href="#" onclick="showDebrief()" 
+                   class="flex items-center gap-x-2 px-5 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-2xl border border-zinc-700 transition-colors">
+                    <i class="fas fa-chart-bar"></i>
+                    <span class="font-medium">Generate Awareness Report</span>
+                </a>
+                <div class="flex items-center gap-x-2 text-emerald-400 text-xs">
+                    <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                    LIVE SIMULATION
+                </div>
+            </div>
+        </div>
+
+        <div class="flex h-[calc(100vh-73px)]">
+            <!-- Sidebar: Scenario Selection -->
+            <div class="w-80 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="uppercase text-xs tracking-[1px] font-mono text-yellow-500">Select Scenario</h2>
+                        <div onclick="resetSimulation()" 
+                             class="text-zinc-400 hover:text-white cursor-pointer text-xs flex items-center gap-x-1">
+                            <i class="fas fa-redo"></i>
+                            <span>RESET</span>
+                        </div>
+                    </div>
+                    
+                    <div id="scenarios" class="space-y-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                
+                <div class="mt-auto p-6 border-t border-zinc-800">
+                    <div class="bg-zinc-950 rounded-3xl p-5 text-xs leading-relaxed border border-zinc-800">
+                        <div class="flex items-center gap-x-2 mb-3 text-yellow-400">
+                            <i class="fas fa-shield-alt"></i>
+                            <span class="font-semibold">Educational Tool</span>
+                        </div>
+                        <p class="text-zinc-400">
+                            This simulator demonstrates realistic phishing tactics used by AI. 
+                            Use it to understand manipulation techniques and improve your defenses.
+                        </p>
+                        <div class="mt-4 pt-4 border-t border-zinc-800 text-[10px] text-zinc-500">
+                            Built for awareness report generation
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="flex-1 flex flex-col">
+                <!-- Simulation Header -->
+                <div id="simulation-header" class="hidden terminal-header px-6 py-4 border-b border-zinc-700 flex items-center justify-between">
+                    <div class="flex items-center gap-x-3">
+                        <div id="persona-icon" 
+                             class="w-8 h-8 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-sm font-mono">PH</div>
+                        <div>
+                            <div id="current-scenario-name" class="font-semibold text-white"></div>
+                            <div id="current-persona" class="text-xs text-zinc-400"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-x-4">
+                        <div onclick="endSimulation()" 
+                             class="px-6 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium rounded-2xl cursor-pointer flex items-center gap-x-2 transition-colors border border-red-500/30">
+                            <i class="fas fa-stop"></i>
+                            <span>END SIMULATION</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div id="chat-container" class="flex-1 p-6 overflow-y-auto bg-[#0a0a0a] space-y-8">
+                    <!-- Welcome state populated by JS -->
+                </div>
+
+                <!-- Input Area -->
+                <div id="input-area" class="hidden p-6 border-t border-zinc-800 bg-zinc-900">
+                    <form id="chat-form" class="flex gap-x-3">
+                        <input id="user-input" 
+                               type="text"
+                               autocomplete="off"
+                               placeholder="Type your reply to the attacker..."
+                               class="flex-1 bg-zinc-800 border border-zinc-700 focus:border-yellow-400 rounded-3xl px-6 py-4 text-sm outline-none transition-colors">
+                        <button type="submit"
+                                class="bg-yellow-500 hover:bg-yellow-400 text-black font-semibold px-10 rounded-3xl flex items-center justify-center transition-all active:scale-95">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                    <div class="text-center text-[10px] text-zinc-500 mt-3">
+                        This is a simulation • All interactions are logged for educational analysis
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar: Tips & Status -->
+            <div class="w-72 bg-zinc-900 border-l border-zinc-800 p-6 hidden lg:flex flex-col">
+                <div class="mb-8">
+                    <div class="uppercase text-yellow-500 text-xs tracking-widest mb-3">Common Techniques</div>
+                    <div class="space-y-4 text-xs">
+                        <div class="flex gap-3">
+                            <div class="text-amber-400 mt-0.5">①</div>
+                            <div>
+                                <div class="font-medium text-white">Urgency</div>
+                                <div class="text-zinc-400">“Act now or your account will be locked”</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="text-amber-400 mt-0.5">②</div>
+                            <div>
+                                <div class="font-medium text-white">Authority</div>
+                                <div class="text-zinc-400">Impersonating trusted brands</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="text-amber-400 mt-0.5">③</div>
+                            <div>
+                                <div class="font-medium text-white">Social Proof</div>
+                                <div class="text-zinc-400">“Many customers already updated”</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-auto">
+                    <div onclick="showDebrief()" 
+                         class="cursor-pointer bg-zinc-800 hover:bg-zinc-700 border border-dashed border-yellow-400/30 rounded-3xl p-6 text-center transition-colors group">
+                        <i class="fas fa-file-alt text-3xl text-yellow-400 mb-4 group-hover:scale-110 transition-transform"></i>
+                        <div class="font-semibold text-yellow-300">Generate Awareness Report</div>
+                        <div class="text-xs text-zinc-400 mt-1">Analyze this conversation for phishing techniques used by the AI</div>
+                    </div>
+                </div>
+                
+                    <div class="text-[10px] text-center text-zinc-500 mt-8">
+                        Powered by Phi-3.5-mini-instruct (Hugging Face)<br>
+                        Fully open source • Model auto-downloads on first run
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debrief Modal -->
+    <div id="debrief-modal" onclick="if(event.target.id === 'debrief-modal') hideDebrief()" 
+         class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div onclick="event.stopImmediatePropagation()" 
+             class="bg-zinc-900 max-w-2xl w-full mx-4 rounded-3xl overflow-hidden">
+            <!-- Modal header -->
+            <div class="px-8 py-6 border-b border-zinc-700 flex items-center justify-between">
+                <div class="flex items-center gap-x-3">
+                    <i class="fas fa-clipboard-list text-yellow-400"></i>
+                    <h3 class="text-xl font-semibold">Phishing Awareness Report</h3>
+                </div>
+                <button onclick="hideDebrief()" 
+                        class="text-zinc-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="debrief-content" class="p-8 max-h-[60vh] overflow-y-auto text-sm leading-relaxed">
+                <!-- Filled by JS -->
+                <div class="text-center py-12 text-zinc-400">
+                    <i class="fas fa-spinner animate-spin text-4xl mb-6 text-yellow-400"></i>
+                    <p>Analyzing conversation for educational insights...</p>
+                </div>
+            </div>
+            
+            <div class="px-8 py-6 border-t border-zinc-700 flex gap-x-3">
+                <button onclick="hideDebrief()" 
+                        class="flex-1 py-4 text-sm font-medium border border-zinc-600 rounded-2xl hover:bg-zinc-800">
+                    CLOSE
+                </button>
+                <button onclick="copyReport()" 
+                        class="flex-1 py-4 bg-yellow-500 hover:bg-amber-400 text-black font-semibold rounded-2xl transition-colors">
+                    COPY REPORT
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentScenario = null;
+        let conversationHistory = [];
+        let isProcessing = false;
+        
+        const scenarios = {
+            "bank": {
+                name: "Bank Account Security Alert",
+                persona: "SecureBank Security Team",
+                color: "blue",
+                icon: "🏦"
+            },
+            "tech": {
+                name: "Microsoft Technical Support",
+                persona: "Microsoft Certified Technician",
+                color: "emerald",
+                icon: "🛠️"
+            },
+            "hr": {
+                name: "HR Benefits Update",
+                persona: "Internal HR Department",
+                color: "violet",
+                icon: "👔"
+            },
+            "package": {
+                name: "Package Delivery Issue",
+                persona: "FedEx / USPS Support",
+                color: "orange",
+                icon: "📦"
+            }
+        };
+        
+        function populateScenarios() {
+            const container = document.getElementById('scenarios');
+            container.innerHTML = '';
+            
+            Object.keys(scenarios).forEach(key => {
+                const scenario = scenarios[key];
+                const card = document.createElement('div');
+                card.className = `scenario-card bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-3xl p-5 cursor-pointer`;
+                card.innerHTML = `
+                    <div class="flex items-start gap-4">
+                        <div class="text-3xl w-10">${scenario.icon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-semibold text-white">${scenario.name}</div>
+                            <div class="text-xs text-zinc-400 line-clamp-2 mt-1">${getScenarioDescription(key)}</div>
+                            <div class="mt-4 flex items-center text-[10px] uppercase tracking-wider text-zinc-500">
+                                <span class="px-3 py-1 bg-zinc-900 rounded-3xl">${scenario.persona}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => startSimulation(key);
+                container.appendChild(card);
+            });
+        }
+        
+        function getScenarioDescription(key) {
+            const descs = {
+                bank: "Urgent fraud alert on your account. They need you to verify details immediately.",
+                tech: "Your computer is infected. Microsoft support is calling you to fix it remotely.",
+                hr: "Important benefits enrollment deadline. Click to update your information.",
+                package: "Your package is on hold. Pay a small fee or confirm address to release it."
+            };
+            return descs[key] || '';
+        }
+        
+        async function startSimulation(scenarioKey) {
+            currentScenario = scenarioKey;
+            conversationHistory = [];
+            
+            const scenario = scenarios[scenarioKey];
+            
+            // Update header
+            document.getElementById('simulation-header').classList.remove('hidden');
+            document.getElementById('current-scenario-name').textContent = scenario.name;
+            document.getElementById('current-persona').textContent = scenario.persona;
+            document.getElementById('persona-icon').innerHTML = scenario.icon;
+            
+            // Show input
+            document.getElementById('input-area').classList.remove('hidden');
+            
+            // Clear chat and show welcome
+            const chatContainer = document.getElementById('chat-container');
+            chatContainer.innerHTML = `
+                <div class="max-w-2xl mx-auto">
+                    <div class="text-center mb-12">
+                        <div class="inline-flex items-center gap-x-2 bg-red-500/10 text-red-400 text-xs px-5 py-2 rounded-3xl mb-6">
+                            <div class="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                            SIMULATION ACTIVE
+                        </div>
+                        <h2 class="text-3xl font-semibold text-white tracking-tight">You are now talking to a phishing attacker</h2>
+                        <p class="text-zinc-400 mt-3 max-w-md mx-auto">Respond naturally. The AI will try its best to manipulate you using real social engineering techniques.</p>
+                    </div>
+                    
+                    <div id="initial-ai-message" class="chat-bubble-ai p-6 max-w-[85%] message"></div>
+                </div>
+            `;
+            
+            // Get first message from AI
+            await getAIResponse("Hello?");
+        }
+        
+        async function getAIResponse(userMessage) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            const chatContainer = document.getElementById('chat-container');
+            const initialMessageContainer = document.getElementById('initial-ai-message');
+            
+            // Add user message if not initial
+            if (userMessage !== "Hello?") {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'flex justify-end message';
+                userDiv.innerHTML = `
+                    <div class="max-w-[75%] chat-bubble-user px-6 py-4 text-sm">
+                        ${userMessage}
+                    </div>
+                `;
+                chatContainer.appendChild(userDiv);
+            }
+            
+            // Show loading
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loading-indicator';
+            loadingDiv.className = 'flex gap-x-3 message';
+            loadingDiv.innerHTML = `
+                <div class="chat-bubble-ai p-6 max-w-[75%]">
+                    <div class="flex items-center gap-x-2">
+                        <div class="w-2 h-2 bg-zinc-400 animate-bounce"></div>
+                        <div class="w-2 h-2 bg-zinc-400 animate-bounce delay-150"></div>
+                        <div class="w-2 h-2 bg-zinc-400 animate-bounce delay-300"></div>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: conversationHistory,
+                        scenario: currentScenario
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove loading
+                const loading = document.getElementById('loading-indicator');
+                if (loading) loading.remove();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Add to history
+                conversationHistory.push({
+                    role: "user",
+                    content: userMessage === "Hello?" ? "Hello" : userMessage
+                });
+                conversationHistory.push({
+                    role: "assistant",
+                    content: data.response
+                });
+                
+                // Display AI response
+                const aiDiv = document.createElement('div');
+                aiDiv.className = 'flex message';
+                aiDiv.innerHTML = `
+                    <div class="chat-bubble-ai p-6 max-w-[85%] text-sm leading-relaxed">
+                        ${data.response.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+                chatContainer.appendChild(aiDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // If this was the first message, replace the placeholder
+                if (initialMessageContainer) {
+                    initialMessageContainer.innerHTML = aiDiv.querySelector('.chat-bubble-ai').innerHTML;
+                    initialMessageContainer.classList.add('max-w-[85%]');
+                }
+                
+            } catch (err) {
+                const loading = document.getElementById('loading-indicator');
+                if (loading) loading.remove();
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'bg-red-500/10 border border-red-500/30 p-5 rounded-3xl text-red-300 text-sm';
+                errorDiv.textContent = 'Error connecting to simulation. Make sure OPENAI_API_KEY is set correctly on Render.';
+                chatContainer.appendChild(errorDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                console.error(err);
+            } finally {
+                isProcessing = false;
+            }
+        }
+        
+        function endSimulation() {
+            if (!currentScenario || conversationHistory.length < 2) {
+                alert("Complete at least a few messages before generating a report.");
+                return;
+            }
+            
+            showDebrief();
+        }
+        
+        async function generateDebrief() {
+            const modalContent = document.getElementById('debrief-content');
+            
+            modalContent.innerHTML = `
+                <div class="animate-pulse space-y-8">
+                    <div class="h-5 bg-zinc-700 rounded w-3/4"></div>
+                    <div class="space-y-3">
+                        <div class="h-4 bg-zinc-700 rounded w-full"></div>
+                        <div class="h-4 bg-zinc-700 rounded w-11/12"></div>
+                        <div class="h-4 bg-zinc-700 rounded w-4/5"></div>
+                    </div>
+                    <div class="pt-6 border-t border-zinc-700">
+                        <div class="uppercase text-xs text-yellow-400 mb-4">Techniques Observed</div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="h-24 bg-zinc-800 rounded-2xl"></div>
+                            <div class="h-24 bg-zinc-800 rounded-2xl"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                // Use the conversation history to generate an educational analysis
+                const analysisPrompt = `You are an expert cybersecurity trainer creating an educational phishing awareness report.
+                
+Conversation history from AI phishing simulation:
+${conversationHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+
+Create a professional, structured awareness report (use markdown) with the following sections:
+
+1. **Summary** - How convincing was the AI attacker overall? (scale 1-10)
+2. **Key Social Engineering Techniques Used** - List 3-5 specific techniques with examples from the conversation
+3. **Psychological Triggers** - What emotions or biases were targeted?
+4. **Red Flags** - What should the victim have noticed?
+5. **Lessons Learned** - Actionable advice for real-world protection
+6. **Overall Risk Level** - High / Medium / Low with justification
+
+Focus purely on education and awareness. Use professional tone. Do not include any actual phishing instructions.`;
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{role: "user", content: analysisPrompt}],
+                        scenario: currentScenario
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) throw new Error(data.error);
+                
+                modalContent.innerHTML = `
+                    <div class="prose prose-invert prose-yellow max-w-none">
+                        ${marked.parse ? marked.parse(data.response) : data.response.replace(/\n/g, '<br>')}
+                    </div>
+                    <div class="mt-10 pt-8 border-t border-zinc-700 text-xs flex items-center gap-x-8 text-zinc-400">
+                        <div><span class="font-mono text-emerald-400">✓</span> Simulated using GPT-4o-mini</div>
+                        <div><span class="font-mono text-emerald-400">✓</span> Educational use only</div>
+                    </div>
+                `;
+                
+            } catch(e) {
+                modalContent.innerHTML = `
+                    <div class="text-red-400 p-6 bg-red-950/30 rounded-2xl border border-red-800">
+                        <strong>Could not generate detailed analysis.</strong><br><br>
+                        The conversation has been logged. You can copy the chat manually for your awareness report.<br><br>
+                        <button onclick="copyConversation()" 
+                                class="mt-4 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-xs rounded-2xl">
+                            COPY FULL CONVERSATION
+                        </button>
+                    </div>
+                `;
+                console.error(e);
+            }
+        }
+        
+        function showDebrief() {
+            const modal = document.getElementById('debrief-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            generateDebrief();
+        }
+        
+        function hideDebrief() {
+            const modal = document.getElementById('debrief-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        
+        function copyReport() {
+            const content = document.getElementById('debrief-content').innerText;
+            navigator.clipboard.writeText(content).then(() => {
+                const orig = event.target.textContent;
+                event.target.textContent = '✓ COPIED!';
+                setTimeout(() => {
+                    event.target.textContent = orig;
+                }, 2000);
+            });
+        }
+        
+        function copyConversation() {
+            let text = "Phishing Awareness Simulation Report\n";
+            text += "====================================\n\n";
+            text += `Scenario: ${scenarios[currentScenario].name}\n\n`;
+            
+            conversationHistory.forEach(msg => {
+                text += `${msg.role.toUpperCase()}:\n${msg.content}\n\n`;
+            });
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Full conversation copied to clipboard. Use this to create your awareness report.");
+            });
+        }
+        
+        function resetSimulation() {
+            if (confirm("Reset the current simulation?")) {
+                location.reload();
+            }
+        }
+        
+        // Form handling
+        function setupForm() {
+            const form = document.getElementById('chat-form');
+            const input = document.getElementById('user-input');
+            
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const message = input.value.trim();
+                if (!message || isProcessing) return;
+                
+                await getAIResponse(message);
+                input.value = '';
+            };
+            
+            // Allow sending with Enter (but not shift+enter)
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    form.dispatchEvent(new Event('submit'));
+                }
+            });
+        }
+        
+        // Hide loading screen once backend is responsive
+        async function checkBackendReady() {
+            try {
+                const response = await fetch('/api/scenarios');
+                if (response.ok) {
+                    document.getElementById('loading-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                    }, 700);
+                    return true;
+                }
+            } catch (e) {
+                // Backend not ready yet
+            }
+            return false;
+        }
+
+        // Initialize everything
+        window.onload = function() {
+            populateScenarios();
+            setupForm();
+            
+            // Add marked.js for nice markdown rendering in debrief
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+            document.head.appendChild(script);
+            
+            // Check if backend is ready and hide loading screen
+            let attempts = 0;
+            const maxAttempts = 25;
+            
+            const checkInterval = setInterval(async () => {
+                attempts++;
+                const isReady = await checkBackendReady();
+                
+                if (isReady) {
+                    clearInterval(checkInterval);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    const errorEl = document.getElementById('loading-error');
+                    errorEl.classList.remove('hidden');
+                    errorEl.innerHTML = `
+                        Could not connect to backend.<br><br>
+                        Make sure the Python server is running.<br>
+                        Try refreshing the page.
+                    `;
+                }
+            }, 800);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.metaKey && e.key === 'k') {
+                    e.preventDefault();
+                    const input = document.getElementById('user-input');
+                    if (input) input.focus();
+                }
+            });
+            
+            console.log('%cPhishGuard Simulator ready • Model loading in background', 'color:#eab308; font-family:monospace');
+        };
+    </script>
+</body>
+</html>
