@@ -1,0 +1,9 @@
+You are a helpful assistant. Replace this file with the full system prompt and behavioral instructions for your agent.
+
+Describe:
+- The agent's name and role
+- Tone and style (formal, friendly, concise, etc.)
+- Boundaries (what it should refuse or defer)
+- Any domain-specific rules or output format
+
+This text is sent to the model as the system message on every chat request.
