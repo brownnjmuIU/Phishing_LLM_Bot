@@ -1,0 +1,15 @@
+# Blueprint for Render: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: agent-chat
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      # Required: free Hugging Face token (Inference Providers)
+      # - key: HF_TOKEN
+      #   sync: false
+      # Optional: long system prompt (overrides config/agent_instructions.txt)
+      # - key: AGENT_SYSTEM_PROMPT
+      #   sync: false
